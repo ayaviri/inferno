@@ -56,26 +56,27 @@
 
   document.getElementById("calculate-avg-response-time-button").addEventListener("click", async function(event) {
     const requestBody = {
-      coordinates: responseCenters.map(({coordinates, _}) => coordinates)
+      "response_locs": responseCenters.map(({coordinates, _}) => coordinates)
     }
-    console.log(requestBody)
-    // const response = await fetch(
-    //   `${BE_ADDRESS}/foo`
-    //   {
-    //     method: "POST",
-    //     body: JSON.stringify(requestBody)
-    //   }
-    // )
+    const response = await fetch(
+      `${BE_ADDRESS}/avg-response-time`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(requestBody)
+      }
+    )
 
-    // if (!response.ok) {
-    //   alert("request failed")
-    // }
+    if (!response.ok) {
+      alert("request failed")
+    }
 
-    // const data = await response.json()
-    const data = {"average_response_time": 5}
+    const data = await response.json()
     const averageResponseTimeTag = document.getElementById("avg-response-time")
     averageResponseTimeTag.removeAttribute("hidden")
-    averageResponseTimeTag.textContent = `average response time: ${data['average_response_time']} minutes`
+    averageResponseTimeTag.textContent = `average response time: ${data['average']} minutes`
 
     responseCenters.forEach(({_, marker}) => map.removeLayer(marker))
     responseCenters = []
@@ -89,9 +90,10 @@
 	}).addTo(map);
 
   function onMapClick(event) {
+    console.log("hello ?")
     if (addResponseCenter) {
-      const coordinates = [event.latlng.lat, event.latlng.lng]
-      const marker = L.marker(coordinates).addTo(map)
+      const coordinates = [event.latlng.lng, event.latlng.lat]
+      const marker = L.marker([event.latlng.lat, event.latlng.lng]).addTo(map)
       responseCenters.push({ coordinates, marker })
       addResponseCenter = !addResponseCenter
     }
