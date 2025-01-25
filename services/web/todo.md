@@ -1,5 +1,5 @@
 # inferno ui
 
-- render map
-- ability to add emergency response stations
-- request for average response time
+[x] render map
+[x] ability to add emergency response stations
+[x] request for average response time
