@@ -1,2 +1,2 @@
 # inferno
-Emergency response simulation app
+emergency response simulation app
