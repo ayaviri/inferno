@@ -82,17 +82,35 @@
     responseCenters = []
   })
   
-  const center = [39.74616076913565, -104.98834525176358]
-	const map = L.map('map').setView(center, 13);
+
+  const bounds = [
+    [39.60930494530266, -105.11843501898841], // Southwest corner
+    [39.91597035238236, -104.59658444158319] // Northeast corner
+  ]
+  const center = [
+    (bounds[0][0] + bounds[1][0]) / 2,
+    (bounds[0][1] + bounds[1][1]) / 2
+  ]
+  console.log(center)
+  const map = L.map('map').setView(center, 10);
 	const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 		maxZoom: 19,
 		attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 	}).addTo(map);
 
+  const regionOutline = L.rectangle(bounds, { color: "#ff7800", weight: 2 }).addTo(map)
+
+  function isWithinBounds(lat, lng) {
+    return (
+      lat >= bounds[0][0] && lat <= bounds[1][0] &&
+      lng >= bounds[0][1] && lng <= bounds[1][1]
+    )
+  }
+
   function onMapClick(event) {
-    if (addResponseCenter) {
-      const coordinates = [event.latlng.lng, event.latlng.lat]
-      const marker = L.marker([event.latlng.lat, event.latlng.lng]).addTo(map)
+    const coordinates = [event.latlng.lng, event.latlng.lat]
+    if (addResponseCenter && isWithinBounds(coordinates[1], coordinates[0])) {
+      const marker = L.marker([coordinates[1], coordinates[0]]).addTo(map)
       responseCenters.push({ coordinates, marker })
       addResponseCenter = !addResponseCenter
     }
