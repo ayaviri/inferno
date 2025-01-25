@@ -76,13 +76,13 @@
     const data = await response.json()
     const averageResponseTimeTag = document.getElementById("avg-response-time")
     averageResponseTimeTag.removeAttribute("hidden")
-    averageResponseTimeTag.textContent = `average response time: ${data['average']} minutes`
+    averageResponseTimeTag.textContent = `average response time: ${data['average'] / 60} minutes`
 
     responseCenters.forEach(({_, marker}) => map.removeLayer(marker))
     responseCenters = []
   })
   
-  const center = [39.764108840443185, -104.85479265259818]
+  const center = [39.74616076913565, -104.98834525176358]
 	const map = L.map('map').setView(center, 13);
 	const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 		maxZoom: 19,
@@ -90,7 +90,6 @@
 	}).addTo(map);
 
   function onMapClick(event) {
-    console.log("hello ?")
     if (addResponseCenter) {
       const coordinates = [event.latlng.lng, event.latlng.lat]
       const marker = L.marker([event.latlng.lat, event.latlng.lng]).addTo(map)
