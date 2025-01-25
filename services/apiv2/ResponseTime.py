@@ -8,7 +8,6 @@ GRAPH_HOPPER_API_URL = (
     "http://localhost:8989/route"  # Replace with your GraphHopper instance URL
 )
 
-
 @router.get("/calculate-route")
 async def calculate_route(
     start_lat: float = Query(..., description="Starting latitude"),
