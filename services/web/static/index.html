@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<base target="_top">
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	
+	<title>inferno</title>
+	
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+	<style>
+		html, body {
+			height: 100%;
+			margin: 0;
+		}
+		.leaflet-container {
+			height: 400px;
+			width: 600px;
+			max-width: 100%;
+			max-height: 100%;
+		}
+    #map-container {
+      height: 100vh;
+      width: 75%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+	</style>
+
+	
+</head>
+<body>
+
+
+
+<div id"map-container">
+  <h1>map</h1>
+  <div id="map" style="width: 600px; height: 400px;"></div>
+  <button id="add-response-center-button">add response center</button>
+  <button id="calculate-avg-response-time-button">calculate average response time</button>
+  <p id="avg-response-time" hidden><p>
+</div>
+<script>
+  // Growing list of the response center location/leaflet marker pairs added by user
+  var responseCenters = []
+  const BE_ADDRESS = "http://localhost:8000"
+  // Toggle that's true when a new response center is to be added
+  var addResponseCenter = false
+
+  document.getElementById("add-response-center-button").addEventListener("click", function(event) {
+    addResponseCenter = !addResponseCenter
+  })
+
+  document.getElementById("calculate-avg-response-time-button").addEventListener("click", async function(event) {
+    const requestBody = {
+      coordinates: responseCenters.map(({coordinates, _}) => coordinates)
+    }
+    console.log(requestBody)
+    // const response = await fetch(
+    //   `${BE_ADDRESS}/foo`
+    //   {
+    //     method: "POST",
+    //     body: JSON.stringify(requestBody)
+    //   }
+    // )
+
+    // if (!response.ok) {
+    //   alert("request failed")
+    // }
+
+    // const data = await response.json()
+    const data = {"average_response_time": 5}
+    const averageResponseTimeTag = document.getElementById("avg-response-time")
+    averageResponseTimeTag.removeAttribute("hidden")
+    averageResponseTimeTag.textContent = `average response time: ${data['average_response_time']} minutes`
+
+    responseCenters.forEach(({_, marker}) => map.removeLayer(marker))
+    responseCenters = []
+  })
+  
+  const center = [39.764108840443185, -104.85479265259818]
+	const map = L.map('map').setView(center, 13);
+	const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+		maxZoom: 19,
+		attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+	}).addTo(map);
+
+  function onMapClick(event) {
+    if (addResponseCenter) {
+      const coordinates = [event.latlng.lat, event.latlng.lng]
+      const marker = L.marker(coordinates).addTo(map)
+      responseCenters.push({ coordinates, marker })
+      addResponseCenter = !addResponseCenter
+    }
+  }
+
+  map.on('click', onMapClick)
+</script>
+
+
+
+</body>
+</html>
