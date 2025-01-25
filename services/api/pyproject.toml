@@ -1,0 +1,15 @@
+[project]
+name = "inferno-api"
+version = "0.1.0"
+description = "Default template for PDM package"
+authors = [
+    {name = "Daniel Pintard", email = "danielpintard@yahoo.com"},
+]
+dependencies = ["fastapi>=0.115.7", "uvicorn>=0.34.0", "shapely>=2.0.6", "requests>=2.32.3"]
+requires-python = "==3.13.*"
+readme = "README.md"
+license = {text = "MIT"}
+
+
+[tool.pdm]
+distribution = false
