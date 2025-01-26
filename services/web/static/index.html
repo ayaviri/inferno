@@ -83,6 +83,7 @@
   })
   
 
+  // lat, long
   const bounds = [
     [39.60930494530266, -105.11843501898841], // Southwest corner
     [39.91597035238236, -104.59658444158319] // Northeast corner
@@ -91,7 +92,6 @@
     (bounds[0][0] + bounds[1][0]) / 2,
     (bounds[0][1] + bounds[1][1]) / 2
   ]
-  console.log(center)
   const map = L.map('map').setView(center, 10);
 	const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 		maxZoom: 19,

@@ -43,26 +43,19 @@ def compute_avg_res(body: ComputeAvgResBody):
 
 
 def region_chunks():
-    # convention for project - lon, lat
     with open("denver.geojson", "r") as geojson_file:
         geojson_data = json.load(geojson_file)
+        geom = shape(geojson_data["features"][0]["geometry"])
 
     random_coords = []
+    num_coords = 50
 
-    for feature in geojson_data["features"]:
-        geom = shape(feature["geometry"])
+    for _ in range(num_coords):
         minx, miny, maxx, maxy = geom.bounds
-        n = 2
-        feature_coords = []
+        lat = random.uniform(miny, maxy)
+        lon = random.uniform(minx, maxx)
+        random_coords.append([lon, lat])
 
-        while len(feature_coords) < n:
-            lat = random.uniform(miny, maxy)
-            lon = random.uniform(minx, maxx)
-            point = Point(lon, lat)
-            if geom.contains(point):
-                feature_coords.append([lon, lat])
-
-        random_coords.extend(feature_coords)
     return random_coords
 
 
