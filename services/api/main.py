@@ -7,6 +7,7 @@ from shapely.geometry import shape, Point
 import json
 import random
 import requests
+from sklearn.cluster import KMeans
 
 app = FastAPI()
 origins = ["*"]
@@ -105,24 +106,46 @@ def compute_response_time(loc: list[float], response_ctrs: list[float]):
 
     return travel_time
 
-    # Extract the best route (first path)
-    best_route = gh_response["paths"][0]
-    travel_time = best_route.get("time", 0) / 1000  # Convert ms to seconds
+def validate_and_snap_loc(location: list[float]):
+    GRAPH_HOPPER_API_URL = ("http://localhost:8989/route") # Q: this is passed as a tuple right? Also we should maybe globablize this
+    
+    response = requests.get(GRAPH_HOPPER_API_URL, params = {
+        "point" : f"{location[0]},{location[1]}",
+        "point" : f"{location[0]},{location[1]}", #overwriting first point with same point to request one
+        "vehicle" : "car",
+        "locale" : "en",
+        "snap_prevention" : ["ferry", "tunnel", "bridge"] # Q /j: wtf is a "ford" lol
+    })
+    response.raise_for_status()
+    gh_response = response.json()
+    
+    if "paths" in gh_response and len(gh_response["paths"]) > 0:
+        snapped_point = gh_response["paths"][0]["snapped_waypoints"]
+        return [snapped_point["lon"], snapped_point["lat"]]
+    else:
+        raise ValueError("No valid roads near the given location") # Q: is raising an error totally necessary?
+    
+    # Q: will RequestException be necessary
 
-    return travel_time
+def optimize_response_ctrs (emergencies: list[list[float]], num_ctrs: int):
+    kmeans = KMeans(n_clusters = num_ctrs, random_state = 42).fit(emergencies)
+    centroids = kmeans.cluster_centers_
+    
+    snapped_locs = []
+    for centroid in centroids:
+        snapped_location = validate_and_snap_loc(centroid)
+        snapped_locs.append(snapped_locs)
+    
+    return snapped_locs
 
-    # Extract the best route (first path)
-    best_route = gh_response["paths"][0]
-    travel_time = best_route.get("time", 0) / 1000  # Convert ms to seconds
-
-    return travel_time
-
-    # Extract the best route (first path)
-    best_route = gh_response["paths"][0]
-    travel_time = best_route.get("time", 0) / 1000  # Convert ms to seconds
-
-    return travel_time
-
+def eval_ctr_config(emergencies: list[list[float]], response_centers: list[list[float]]):
+    total_response_time = 0
+    for emergency in emergencies:
+        min_time = min([compute_response_time(emergency, center) for center in response_centers])
+        total_response_time += min_time
+    
+    avg_resp_time = total_response_time / len(emergencies)
+    return avg_resp_time
 
 @app.get("/map-data")
 async def get_map_data(
