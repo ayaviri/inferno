@@ -1,0 +1,13 @@
+services:
+  redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - inferno-redis-data:/data
+
+
+volumes:
+  inferno-redis-data:
+    driver: local

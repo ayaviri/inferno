@@ -49,14 +49,21 @@
     <button id="add-response-center-button">add response center</button>
     <button id="add-emergency-button">add emergency</button>
     <button id="calculate-avg-response-time-button">calculate average response time</button>
+    <button id="simulate-single-button">simulate single</button>
   </div>
-  <p id="avg-response-time" hidden><p>
+  <p id="avg-response-time" hidden></p>
+  <p id="single-response-time" hidden></p>
+  <label for="num_response_centers">number of response centers</label>
+  <input id="num_response_centers" type="range" min="1" max="9" step="1" oninput="this.nextElementSibling.textContent=this.value"/>
+  <p>5</p>
 </div>
 <script>
+  // List of markers in the optimal configuration to clear
+  var optimalConfig = []
   // Growing list of the response center location/leaflet marker pairs added by user
   var responseCenters = []
-  // Same, but with fires
-  var fires = []
+  // Single fire location/leaflet marker pair
+  var fire
   const BE_ADDRESS = "http://localhost:8000"
   // Toggle that's true when a new response center is to be added
   var addResponseCenter = false
@@ -68,6 +75,32 @@
 
   document.getElementById("add-emergency-button").addEventListener("click", function(event) {
     addFire= !addFire
+  })
+
+  document.getElementById("simulate-single-button").addEventListener("click", async function(event) {
+    const requestBody = {
+      "fire_loc": fire.coordinates,
+      "response_locs": responseCenters.map(({coordinates, _}) => coordinates)
+    }
+    const response = await fetch(
+      `${BE_ADDRESS}/simulate-single`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(requestBody),
+      }
+    )
+
+    if (!response.ok) {
+        alert("request failed")
+    }
+
+    const data = await response.json()
+    const singleResponseTimeTag = document.getElementById("single-response-time")
+    singleResponseTimeTag.removeAttribute("hidden")
+    singleResponseTimeTag.textContent = `response time: ${data['response_time'] / 60} minutes`
   })
 
   document.getElementById("calculate-avg-response-time-button").addEventListener("click", async function(event) {
@@ -97,7 +130,33 @@
     responseCenters.forEach(({_, marker}) => map.removeLayer(marker))
     responseCenters = []
   })
-  
+
+  document.getElementById("num_response_centers").addEventListener("input", async function(event) {
+    const responseCenterCount = parseInt(document.getElementById("num_response_centers").value)
+    const params = new URLSearchParams({ n: responseCenterCount })
+    const response = await fetch(
+      `${BE_ADDRESS}/optimal-config?${params.toString()}`,
+      {
+        method: "GET"
+      }
+    )
+
+    if (!response.ok) {
+      alert("request failed")
+    }
+
+    if (optimalConfig.length) {
+      optimalConfig.forEach((m) => map.removeLayer(m))
+      optimalConfig = []
+    }
+
+    const data = await response.json()
+    // add markers for each location in response
+    data["center_locs"].forEach((center_coordinates) => {
+      const marker = L.marker([center_coordinates[1], center_coordinates[0]], {icon: firefighterIcon}).addTo(map)
+      optimalConfig.push(marker)
+    })
+  })
 
   // lat, long
   const bounds = [
@@ -139,9 +198,9 @@
       responseCenters.push({ coordinates, marker })
       addResponseCenter = !addResponseCenter
     } else if (addFire && withinBounds) {
-      console.log("fire")
       const marker = L.marker([coordinates[1], coordinates[0]], {icon: fireIcon}).addTo(map)
-      fires.push({ coordinates, marker })
+      fire = { coordinates, marker }
+      // fires.push({ coordinates, marker })
       addFire = !addFire
     }
   }
