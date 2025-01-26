@@ -11,20 +11,60 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
 	<style>
-		html, body {
+    body {
+      background: grey;
+    }
+		/* html, body {
 			height: 100%;
 			margin: 0;
-		}
-		.leaflet-container {
+		} */
+		/* .leaflet-container {
 			height: 400px;
 			width: 600px;
 			max-width: 100%;
 			max-height: 100%;
-		}
+		} */
+    /*
     #map-container {
       height: 100vh;
-      width: 75%;
       display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      align-self: center;
+    }
+    */
+    #button-container {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+    }
+    .simulation_button {
+      height: 100px;
+      width: 200px;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 16px;
+    }
+    .simulation_button:hover {
+      background-color: tan;
+    }
+    .select_container {
+      background: blue;
+    }
+    #full_container {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    #middle_container {
+      display: flex;
+      flex-direction: row;
       justify-content: center;
       align-items: center;
     }
@@ -35,23 +75,152 @@
 <body>
 
 
+<!--
 
-<div id"map-container">
-  <h1>map</h1>
-  <div id="map" style="width: 600px; height: 400px;"></div>
-  <button id="add-response-center-button">add response center</button>
-  <button id="calculate-avg-response-time-button">calculate average response time</button>
-  <p id="avg-response-time" hidden><p>
+
+     ___ _   _ _____ _____ ____  _   _  ___  
+    |_ _| \ | |  ___| ____|  _ \| \ | |/ _ \ 
+     | ||  \| | |_  |  _| | |_) |  \| | | | |
+     | || |\  |  _| | |___|  _ <| |\  | |_| |
+    |___|_| \_|_|   |_____|_| \_\_| \_|\___/ 
+    
+
+
+-->                                      
+
+<div id="full_container">
+  <div id="top_container">
+    <img src="inferno.png" style="width: 400px; height: auto;">
+  </div>
+  <br>
+  <div id="middle_container">
+    <div id="simulations_container">
+      <h1 style="text-align: center;">simulate:</h1>
+      <div class="simulation_button" id="avg_response_time_container">average response time</div>
+      <div class="simulation_button" id="single_emergency_instance_container">single fire instance</div>
+      <div class="simulation_button" id="optimal_config_container">optimal station configuration</div>
+    </div>
+    <div id="map" style="width: 900px; height: 600px;"></div>
+    <div id="analytics_container" hidden>
+      <h1 style="text-align: center;">analytics</h1>
+      <p id="avg-response-time" hidden></p>
+      <p id="single-response-time" hidden></p>
+    </div>
+  </div>
+  <div id="bottom-container">
+    <div id="button-container">
+      <button id="add-response-center-button" hidden>add response center</button>
+      <button id="add-emergency-button" hidden>add emergency</button>
+      <button id="calculate-avg-response-time-button" hidden>calculate average response time</button>
+      <button id="simulate-single-button" hidden>simulate single</button>
+      <label id="num_response_centers_label" for="num_response_centers" hidden>number of response centers</label>
+      <input id="num_response_centers" type="range" min="1" max="9" step="1" oninput="this.nextElementSibling.textContent=this.value" hidden/>
+      <p id="num_response_centers_value" hidden>5</p>
+    </div>
+  </div>
 </div>
 <script>
+  var simulation = ""
+  // List of markers in the optimal configuration to clear
+  var optimalConfig = []
   // Growing list of the response center location/leaflet marker pairs added by user
   var responseCenters = []
+  // Single fire location/leaflet marker pair
+  var fire
   const BE_ADDRESS = "http://localhost:8000"
   // Toggle that's true when a new response center is to be added
   var addResponseCenter = false
+  var addFire = false
+
+  function hideBottomRow() {
+    document.getElementById("add-response-center-button").setAttribute("hidden", "")
+    document.getElementById("calculate-avg-response-time-button").setAttribute("hidden", "")
+    document.getElementById("add-emergency-button").setAttribute("hidden", "")
+    document.getElementById("simulate-single-button").setAttribute("hidden", "")
+    document.getElementById("num_response_centers").setAttribute("hidden", "")
+    document.getElementById("num_response_centers_label").setAttribute("hidden", "")
+    document.getElementById("num_response_centers_value").setAttribute("hidden", "")
+  }
+
+  function hideAnalytics() {
+    const analytics = document.getElementById("analytics_container")
+
+    for (const child of analytics.children) {
+      child.setAttribute("hidden", "")
+    }
+  }
+
+
+  //  ____ ___ __  __   ____  _____ _     _____ ____ _____ 
+  // / ___|_ _|  \/  | / ___|| ____| |   | ____/ ___|_   _|
+  // \___ \| || |\/| | \___ \|  _| | |   |  _|| |     | |  
+  //  ___) | || |  | |  ___) | |___| |___| |__| |___  | |  
+  // |____/___|_|  |_| |____/|_____|_____|_____\____| |_|  
+  //                                                       
+
+  document.getElementById("avg_response_time_container").addEventListener("click", function(event) {
+    hideBottomRow()
+    hideAnalytics()
+    document.getElementById("add-response-center-button").removeAttribute("hidden")
+    document.getElementById("calculate-avg-response-time-button").removeAttribute("hidden")
+  })
+
+  document.getElementById("single_emergency_instance_container").addEventListener("click", function(event) {
+    hideBottomRow()
+    hideAnalytics()
+    document.getElementById("add-response-center-button").removeAttribute("hidden")
+    document.getElementById("add-emergency-button").removeAttribute("hidden")
+    document.getElementById("simulate-single-button").removeAttribute("hidden")
+  })
+
+  document.getElementById("optimal_config_container").addEventListener("click", function(event) {
+    hideBottomRow()
+    hideAnalytics()
+    document.getElementById("num_response_centers").removeAttribute("hidden")
+    document.getElementById("num_response_centers_label").removeAttribute("hidden")
+    document.getElementById("num_response_centers_value").removeAttribute("hidden")
+  })
+
+  // foo
 
   document.getElementById("add-response-center-button").addEventListener("click", function(event) {
     addResponseCenter = !addResponseCenter
+  })
+
+  document.getElementById("add-emergency-button").addEventListener("click", function(event) {
+    addFire= !addFire
+  })
+
+  document.getElementById("simulate-single-button").addEventListener("click", async function(event) {
+    const requestBody = {
+      "fire_loc": fire.coordinates,
+      "response_locs": responseCenters.map(({coordinates, _}) => coordinates)
+    }
+    const response = await fetch(
+      `${BE_ADDRESS}/simulate-single`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(requestBody),
+      }
+    )
+
+    if (!response.ok) {
+        alert("request failed")
+    }
+
+    const data = await response.json()
+    document.getElementById("analytics_container").removeAttribute("hidden")
+    const singleResponseTimeTag = document.getElementById("single-response-time")
+    singleResponseTimeTag.removeAttribute("hidden")
+    singleResponseTimeTag.textContent = `response time: ${data['response_time'] / 60} minutes`
+
+    responseCenters.forEach(({_, marker}) => map.removeLayer(marker))
+    responseCenters = []
+    map.removeLayer(fire.marker)
+    fire = {}
   })
 
   document.getElementById("calculate-avg-response-time-button").addEventListener("click", async function(event) {
@@ -74,27 +243,85 @@
     }
 
     const data = await response.json()
+    document.getElementById("analytics_container").removeAttribute("hidden")
     const averageResponseTimeTag = document.getElementById("avg-response-time")
     averageResponseTimeTag.removeAttribute("hidden")
     averageResponseTimeTag.textContent = `average response time: ${data['average'] / 60} minutes`
-
     responseCenters.forEach(({_, marker}) => map.removeLayer(marker))
     responseCenters = []
   })
-  
-  const center = [39.74616076913565, -104.98834525176358]
-	const map = L.map('map').setView(center, 13);
+
+  document.getElementById("num_response_centers").addEventListener("input", async function(event) {
+    const responseCenterCount = parseInt(document.getElementById("num_response_centers").value)
+    const params = new URLSearchParams({ n: responseCenterCount })
+    const response = await fetch(
+      `${BE_ADDRESS}/optimal-config?${params.toString()}`,
+      {
+        method: "GET"
+      }
+    )
+
+    if (!response.ok) {
+      alert("request failed")
+    }
+
+    if (optimalConfig.length) {
+      optimalConfig.forEach((m) => map.removeLayer(m))
+      optimalConfig = []
+    }
+
+    const data = await response.json()
+    // add markers for each location in response
+    data["center_locs"].forEach((center_coordinates) => {
+      const marker = L.marker([center_coordinates[1], center_coordinates[0]], {icon: firefighterIcon}).addTo(map)
+      optimalConfig.push(marker)
+    })
+  })
+
+  // lat, long
+  const bounds = [
+    [39.60930494530266, -105.11843501898841], // Southwest corner
+    [39.91597035238236, -104.59658444158319] // Northeast corner
+  ]
+  const center = [
+    (bounds[0][0] + bounds[1][0]) / 2,
+    (bounds[0][1] + bounds[1][1]) / 2
+  ]
+  const map = L.map('map').setView(center, 11);
 	const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 		maxZoom: 19,
 		attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 	}).addTo(map);
+  const regionOutline = L.rectangle(bounds, { color: "#347deb", weight: 2, fillOpacity: 0.1 }).addTo(map)
+  const firefighterIcon = L.icon({
+    iconUrl: 'firefighter.png',
+    iconSize: [50, 50]
+  })
+  const fireIcon = L.icon({
+    iconUrl: 'fire_icon.png',
+    iconSize: [50, 50]
+  })
+
+  function isWithinBounds(lat, lng) {
+    return (
+      lat >= bounds[0][0] && lat <= bounds[1][0] &&
+      lng >= bounds[0][1] && lng <= bounds[1][1]
+    )
+  }
 
   function onMapClick(event) {
-    if (addResponseCenter) {
-      const coordinates = [event.latlng.lng, event.latlng.lat]
-      const marker = L.marker([event.latlng.lat, event.latlng.lng]).addTo(map)
+    const coordinates = [event.latlng.lng, event.latlng.lat]
+    const withinBounds = isWithinBounds(coordinates[1], coordinates[0])
+
+    if (addResponseCenter && withinBounds) {
+      const marker = L.marker([coordinates[1], coordinates[0]], {icon: firefighterIcon}).addTo(map)
       responseCenters.push({ coordinates, marker })
       addResponseCenter = !addResponseCenter
+    } else if (addFire && withinBounds) {
+      const marker = L.marker([coordinates[1], coordinates[0]], {icon: fireIcon}).addTo(map)
+      fire = { coordinates, marker }
+      // fires.push({ coordinates, marker })
+      addFire = !addFire
     }
   }
 

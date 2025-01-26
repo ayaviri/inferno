@@ -4,9 +4,13 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from shapely.geometry import shape, Point
+import redis
 import json
 import random
 import requests
+import numpy as np
+import random
+import math
 
 app = FastAPI()
 origins = ["*"]
@@ -17,6 +21,23 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def startup():
+    global r
+    r = redis.Redis(host="localhost", port=6379, db=0)
+
+
+class SimulateSingleRequestBody(BaseModel):
+    fire_loc: list[float]
+    response_locs: list[list[float]]
+
+
+@app.post("/simulate-single")
+def simulate_single_fire(body: SimulateSingleRequestBody):
+    response_time = compute_fastest_time_to_loc(body.fire_loc, body.response_locs)
+    return {"response_time": response_time}
 
 
 class ComputeAvgResBody(BaseModel):
@@ -30,7 +51,7 @@ def test():
 
 @app.post("/avg-response-time")
 def compute_avg_res(body: ComputeAvgResBody):
-    em_locs: list[list[float]] = region_chunks()
+    em_locs: list[list[float]] = region_chunks(50)
     total = 0
 
     for loc in em_locs:
@@ -42,27 +63,19 @@ def compute_avg_res(body: ComputeAvgResBody):
     return {"average": compute_avg}
 
 
-def region_chunks():
-    # convention for project - lon, lat
+def region_chunks(num_chunks: int):
     with open("denver.geojson", "r") as geojson_file:
         geojson_data = json.load(geojson_file)
+        geom = shape(geojson_data["features"][0]["geometry"])
 
     random_coords = []
 
-    for feature in geojson_data["features"]:
-        geom = shape(feature["geometry"])
+    for _ in range(num_chunks):
         minx, miny, maxx, maxy = geom.bounds
-        n = 2
-        feature_coords = []
+        lat = random.uniform(miny, maxy)
+        lon = random.uniform(minx, maxx)
+        random_coords.append([lon, lat])
 
-        while len(feature_coords) < n:
-            lat = random.uniform(miny, maxy)
-            lon = random.uniform(minx, maxx)
-            point = Point(lon, lat)
-            if geom.contains(point):
-                feature_coords.append([lon, lat])
-
-        random_coords.extend(feature_coords)
     return random_coords
 
 
@@ -112,44 +125,70 @@ def compute_response_time(loc: list[float], response_ctrs: list[float]):
 
     return travel_time
 
-    # Extract the best route (first path)
-    best_route = gh_response["paths"][0]
-    travel_time = best_route.get("time", 0) / 1000  # Convert ms to seconds
 
-    return travel_time
-
-    # Extract the best route (first path)
-    best_route = gh_response["paths"][0]
-    travel_time = best_route.get("time", 0) / 1000  # Convert ms to seconds
-
-    return travel_time
-
-    # Extract the best route (first path)
-    best_route = gh_response["paths"][0]
-    travel_time = best_route.get("time", 0) / 1000  # Convert ms to seconds
-
-    return travel_time
+@app.get("/optimal-config")
+def optimal_config(n: int):
+    byte_data = r.get(str(n))
+    center_locs = convert_to_coordinate_pairs(byte_data)
+    return {"center_locs": center_locs}
 
 
-@app.get("/map-data")
-async def get_map_data(
-    bbox: str = Query(
-        "...", description="Bounding box in 'min_lon,min_lat,max_lon,max_lat'"
-    ),
-):
-    """
-    Takes Bounding box as input for region (i.e. Denver)
-    Returns Map Data
-    """
+def convert_to_coordinate_pairs(byte_data: bytes):
+    coordinates = json.loads(byte_data.decode("utf-8"))
+    return [list(map(float, pair)) for pair in coordinates]
 
-    try:
-        map_data = fetch_map_data(bbox)
-        return JSONResponse(content=map_data)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=f"Data not found: {e}")
-    except Exception:
-        raise HTTPException(
-            status_code=500, detail=str("An unexpected error occurred.")
-        )
+
+@app.get("/optimal-config-offline")
+def optimal_config_offline(n: int):
+    center_locs: list[list[float]] = compute_optimal_config(n)
+    return {"center_locs": center_locs}
+
+
+def compute_optimal_config(n: int):
+    fire_locations = region_chunks(50)
+    init_centroids = initialize_centroids(fire_locations, n)
+    centroids = init_centroids
+
+    for i in range(20):
+        print(i)
+        clusters = {i: [] for i in range(n)}
+        for fire in fire_locations:
+            route_times = []
+            for centroid in centroids:
+                response_time = compute_response_time(fire, centroid)
+                if response_time > 0:
+                    route_times += [response_time]
+                else:
+                    route_times += [999999999]
+            closest_station = np.argmin(route_times)
+            clusters[closest_station].append(fire)
+
+        new_centroids = []
+        for cluster_points in clusters.values():
+            new_centroids.append(find_centroid(cluster_points))
+
+        if stabilized(centroids, new_centroids):
+            break
+        centroids = new_centroids
+
+    return centroids
+
+
+def initialize_centroids(fire_loc: list[list[float]], n: int):
+    return random.sample(fire_loc, n)
+
+
+def find_centroid(cluster):
+    lon_coords = [pt[0] for pt in cluster]
+    lat_coords = [pt[1] for pt in cluster]
+    mean_lon = np.mean(lon_coords)
+    mean_lat = np.mean(lat_coords)
+
+    return [mean_lon, mean_lat]
+
+
+def stabilized(old: list[list[float]], new: list[list[float]]) -> bool:
+    total_abs_dist = 0
+    for old, new in zip(old, new):
+        total_abs_dist = math.dist(old, new)
+    return total_abs_dist < 0.001
