@@ -11,20 +11,26 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
 	<style>
-		html, body {
+		/* html, body {
 			height: 100%;
 			margin: 0;
-		}
-		.leaflet-container {
+		} */
+		/* .leaflet-container {
 			height: 400px;
 			width: 600px;
 			max-width: 100%;
 			max-height: 100%;
-		}
+		} */
     #map-container {
       height: 100vh;
-      width: 75%;
       display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    #button-container {
+      display: flex;
+      flex-direction: row;
       justify-content: center;
       align-items: center;
     }
@@ -36,22 +42,32 @@
 
 
 
-<div id"map-container">
+<div id="map-container">
   <h1>map</h1>
-  <div id="map" style="width: 600px; height: 400px;"></div>
-  <button id="add-response-center-button">add response center</button>
-  <button id="calculate-avg-response-time-button">calculate average response time</button>
+  <div id="map" style="width: 900px; height: 600px;"></div>
+  <div id="button-container">
+    <button id="add-response-center-button">add response center</button>
+    <button id="add-emergency-button">add emergency</button>
+    <button id="calculate-avg-response-time-button">calculate average response time</button>
+  </div>
   <p id="avg-response-time" hidden><p>
 </div>
 <script>
   // Growing list of the response center location/leaflet marker pairs added by user
   var responseCenters = []
+  // Same, but with fires
+  var fires = []
   const BE_ADDRESS = "http://localhost:8000"
   // Toggle that's true when a new response center is to be added
   var addResponseCenter = false
+  var addFire = false
 
   document.getElementById("add-response-center-button").addEventListener("click", function(event) {
     addResponseCenter = !addResponseCenter
+  })
+
+  document.getElementById("add-emergency-button").addEventListener("click", function(event) {
+    addFire= !addFire
   })
 
   document.getElementById("calculate-avg-response-time-button").addEventListener("click", async function(event) {
@@ -92,13 +108,20 @@
     (bounds[0][0] + bounds[1][0]) / 2,
     (bounds[0][1] + bounds[1][1]) / 2
   ]
-  const map = L.map('map').setView(center, 10);
+  const map = L.map('map').setView(center, 11);
 	const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 		maxZoom: 19,
 		attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 	}).addTo(map);
-
-  const regionOutline = L.rectangle(bounds, { color: "#ff7800", weight: 2 }).addTo(map)
+  const regionOutline = L.rectangle(bounds, { color: "#347deb", weight: 2, fillOpacity: 0.1 }).addTo(map)
+  const firefighterIcon = L.icon({
+    iconUrl: 'firefighter.png',
+    iconSize: [50, 50]
+  })
+  const fireIcon = L.icon({
+    iconUrl: 'fire_icon.png',
+    iconSize: [50, 50]
+  })
 
   function isWithinBounds(lat, lng) {
     return (
@@ -109,10 +132,17 @@
 
   function onMapClick(event) {
     const coordinates = [event.latlng.lng, event.latlng.lat]
-    if (addResponseCenter && isWithinBounds(coordinates[1], coordinates[0])) {
-      const marker = L.marker([coordinates[1], coordinates[0]]).addTo(map)
+    const withinBounds = isWithinBounds(coordinates[1], coordinates[0])
+
+    if (addResponseCenter && withinBounds) {
+      const marker = L.marker([coordinates[1], coordinates[0]], {icon: firefighterIcon}).addTo(map)
       responseCenters.push({ coordinates, marker })
       addResponseCenter = !addResponseCenter
+    } else if (addFire && withinBounds) {
+      console.log("fire")
+      const marker = L.marker([coordinates[1], coordinates[0]], {icon: fireIcon}).addTo(map)
+      fires.push({ coordinates, marker })
+      addFire = !addFire
     }
   }
 
