@@ -1,7 +1,8 @@
 # inferno-web
 
-## Local Development
+## local development
+requires [serve](https://www.npmjs.com/package/serve)
+
 ```
-$ npm install -g server
-$ serve -s static -l 3000
+$ ./dev.sh
 ```

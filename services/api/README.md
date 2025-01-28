@@ -1,8 +1,7 @@
 # inferno-api
 
-## Local Development
+## local development
+requires [pdm](https://github.com/pdm-project/pdm) and docker
 ```
-$ pdm install
-$ pdm run uvicorn main:app --reload
-$ docker compose up -d # This is for the Redis instance that serves the pre-computed optimal configurations
+$ ./dev.sh
 ```

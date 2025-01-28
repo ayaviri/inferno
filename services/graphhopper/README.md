@@ -1,7 +1,7 @@
 # inferno-gh
 
-## Local Development
+## local development
 
 ```
-$ java -jar graphhopper-web-10.2.jar server config.yml
+$ ./dev.sh
 ```
